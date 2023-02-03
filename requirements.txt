@@ -1,0 +1,14 @@
+torch
+torchvision
+torchmetrics
+lpips
+numpy
+matplotlib
+hydra-core
+tqdm
+open3d
+opencv-python
+tinycudann
+tensorboard
+
+camera-geometry-python
