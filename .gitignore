@@ -1,0 +1,17 @@
+/**/*.pth
+/**/*.pyc
+/**/*.o
+/**/*.so
+/**/*.png
+/**/__pycache__
+/**/.hydra
+/**/outputs
+/**/multirun
+/**/.vscode
+/**/lightning_logs
+/**/data
+/**/logs
+/**/logs_old
+/**/weights
+/**/test
+/**/cache

@@ -158,29 +158,29 @@ def render_nerf(
     alpha_importance:float=None,
     bg_color:Optional[torch.Tensor]=None):
     
-    rays_o, rays_d = get_rays(h, w, K, E)
-    z_vals_log, z_vals = efficient_sampling(
-        models, rays_o, rays_d,
+    ray_o, ray_d = get_rays(h, w, K, E)
+    z_val_log, z_val = efficient_sampling(
+        models, ray_o, ray_d,
         steps_firstpass, z_bounds, steps_importance, alpha_importance)
-    xyzs, dirs = get_sample_points(rays_o, rays_d, z_vals)
-    n_expand = n[:, None].expand(-1, z_vals.shape[-1])
+    xyz, dir = get_sample_points(ray_o, ray_d, z_val)
+    n_expand = n[:, None].expand(-1, z_val.shape[-1])
 
-    sigma, color = models(xyzs, dirs, n_expand)
+    sigma, color = models(xyz, dir, n_expand)
 
-    pixel, invdepth, weight = render_rays_log(sigma, color, z_vals, z_vals_log)
+    pixel, invdepth, weight = render_rays_log(sigma, color, z_val, z_val_log)
     if bg_color is not None:
         pixel = pixel + (1 - torch.sum(weight, dim=-1)[..., None]) * bg_color
 
-    z_vals_log_norm = (z_vals_log - m.log10(z_bounds[0])) / (m.log10(z_bounds[-1]) - m.log10(z_bounds[0]))
+    z_vals_log_norm = (z_val_log - m.log10(z_bounds[0])) / (m.log10(z_bounds[-1]) - m.log10(z_bounds[0]))
 
     # auxilary outputs that may be useful for inference of analysis, but not used in training
     aux_outputs = {}
     aux_outputs['invdepth'] = invdepth.detach()
-    aux_outputs['z_vals'] = z_vals.detach()
-    aux_outputs['z_vals_log'] = z_vals_log.detach()
+    aux_outputs['z_val'] = z_val.detach()
+    aux_outputs['z_val_log'] = z_val_log.detach()
     aux_outputs['sigma'] = sigma.detach()
     aux_outputs['color'] = color.detach()
-    aux_outputs['xyzs'] = xyzs.detach()
+    aux_outputs['xyz'] = xyz.detach()
 
     return pixel, weight, z_vals_log_norm, aux_outputs
 

@@ -11,7 +11,7 @@ from typing import Union
 
 import nerf.losses as losses
 
-from nerf.nets import NeRFCoordinateWrapper
+from nerf.nets import NeRF
 from nerf.logger import Logger
 from nerf.inference import render_image, render_invdepth_thresh, generate_pointcloud
 from nerf.metrics import MetricWrapper
@@ -37,7 +37,7 @@ class NeRFTrainer(object):
         self,
         logger:Logger,
         dataloader,
-        model:NeRFCoordinateWrapper,
+        model:NeRF,
         renderer,
         inferencers,
 

@@ -11,25 +11,25 @@ hydra:
 
 scan:
   scan_paths:
-    - /home/casey/PhD/data/conan_scans/ROW_349_EAST_SLOW_0004/scene.json
+    - /home/casey/PhD/data/conan_scans/ROW_349_EAST_SLOW_0006/scene.json
   scan_pose_paths:
     - null
   frame_ranges:
     - null
   frame_strides:
-    - null
+    - 2
   image_scale: 0.5
   inner_bound: 2
   outer_bound: 2.5
 
 log:
-  root_dir: './nerf/logs/test1'
+  root_dir: './nerf/logs/test2'
   eval_image_freq: end
   eval_pointcloud_freq: end
   save_weights_freq: end
 
 trainer:
-  num_epochs: 10
+  num_epochs: 30
   iters_per_epoch: 100
   n_rays: 16384
   dist_loss_range:
@@ -53,6 +53,43 @@ optimizer:
   eps: 1e-15
 
 scheduler: step
+
+inference:
+  image:
+    image_num: 'middle'
+
+  pointcloud:
+    max_variance: 0.05
+    distribution_area: 0.5
+
+    side_margin: 3
+    cams: [2, 3]
+    freq: 3
+
+renderer:
+  steps:
+    - 256
+    - 128
+    - 64
+    - 32
+  z_bounds:
+    - 0.1
+    - 1
+    - 10
+    - 100
+    - 1000
+
+  importance_steps: 128
+  alpha: 0.2
+
+renderer_thresh:
+  steps:
+    - 256
+  z_bounds:
+    - 0.1
+    - 1.0
+  importance_steps: 128
+  alpha: 0.2
 
 
 nets:

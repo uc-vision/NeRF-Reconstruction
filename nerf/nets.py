@@ -8,7 +8,15 @@ import tinycudann as tcnn
 from typing import Optional, Union
 
 
-class NeRFNetwork(nn.Module):
+class NeRF(nn.Module):
+    def forward(self, x, d, n):
+        pass
+
+    def density(self, x):
+        pass
+
+
+class NeRFNetwork(NeRF):
     def __init__(
         self,
         N,
@@ -156,13 +164,20 @@ class NeRFNetwork(nn.Module):
         return sigma
 
 
-class Transform(object):
-    def __init__(self, transform_matrix):
+class Transform(nn.Module):
+    """ Homogenous transform on input coordinates """
+    @torch.cuda.amp.autocast(enabled=False)
+    def __init__(self, rotation=None, translation=None):
         super().__init__()
 
-        self.transform_matrix = transform_matrix
+        # self.transform_matrix = transform_matrix
+        self.rotation = rotation
+        self.translation = translation
+        self.transform_matrix = torch.nn.Parameter(torch.eye(4), requires_grad=False)
+        self.transform_matrix[:3, 3] = translation
 
-    def transform(self, xyzs_a):
+    @torch.cuda.amp.autocast(enabled=False)
+    def forward(self, xyzs_a):
 
         b = xyzs_a.reshape(-1, 3)
         b1 = torch.cat([b, b.new_ones((b.shape[0], 1))], dim=1)
@@ -171,17 +186,9 @@ class Transform(object):
 
         return xyzs_b
 
-    def inverse_transform(self, xyzs_a):
-
-        b = xyzs_a.reshape(-1, 3)
-        b1 = torch.cat([b, b.new_ones((b.shape[0], 1))], dim=1)
-        b2 = (torch.inverse(self.transform_matrix) @ b1.T).T
-        xyzs_b = b2[:, :3].reshape(*xyzs_a.shape)
-
-        return xyzs_b
-
 
 def mipnerf360_scale(xyzs, bound_inner, bound_outer):
+    """ Performes the MIPNeRF360 coordinate warping """
     if len(xyzs.shape) == 2:
         d = torch.linalg.norm(xyzs, dim=-1)[..., None].expand(-1, 3)
     else:
@@ -191,7 +198,11 @@ def mipnerf360_scale(xyzs, bound_inner, bound_outer):
     return xyzs_warped
 
 
-class NeRFCoordinateWrapper(nn.Module):
+class NeRFCoordinateWrapper(NeRF):
+    """ 
+    Wrapper class for NeRF that performs coordinate transforms and warping
+    Same input and output tensor shapes as wrapped NeRF network
+    """
     def __init__(self, 
         model:NeRFNetwork,
         transform:Optional[Transform],
@@ -205,16 +216,16 @@ class NeRFCoordinateWrapper(nn.Module):
         self.inner_bound = inner_bound
         self.outer_bound = outer_bound
 
-    def forward(self, xyzs, dirs, n):
+    def forward(self, x, d, n):
         if self.transform is None:
-            xyzs_transform = xyzs
+            x_transform = x
         else:
-            xyzs_transform = self.transform(xyzs)
+            x_transform = self.transform(x)
 
-        xyzs_warped = mipnerf360_scale(xyzs_transform, self.inner_bound, self.outer_bound)
-        xyzs_norm = (xyzs_warped + self.outer_bound) / (2 * self.outer_bound) # to [0, 1]
+        x_warped = mipnerf360_scale(x_transform, self.inner_bound, self.outer_bound)
+        x_norm = (x_warped + self.outer_bound) / (2 * self.outer_bound) # to [0, 1]
 
-        sigmas, rgbs = self.model(xyzs_norm, dirs, n)
+        sigmas, rgbs = self.model(x_norm, d, n)
 
         return sigmas, rgbs
 

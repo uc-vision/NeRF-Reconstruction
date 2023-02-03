@@ -78,13 +78,13 @@ def calculate_cumlative_weights_thresh(weights, thresh):
 
 
 @torch.no_grad()
-def calculate_dist_mask(weights, z_vals, dist_area, max_var):
+def calculate_dist_mask(weights, z_val, dist_area, max_var):
     weights_thresh_start = calculate_cumlative_weights_thresh(weights, 0.5 - dist_area / 2)
     weights_thresh_mid = calculate_cumlative_weights_thresh(weights, 0.5)
     weights_thresh_end = calculate_cumlative_weights_thresh(weights, 0.5 + dist_area / 2)
 
-    depth_start = torch.sum(weights_thresh_start * z_vals, dim=-1)
-    depth_end = torch.sum(weights_thresh_end * z_vals, dim=-1)
+    depth_start = torch.sum(weights_thresh_start * z_val, dim=-1)
+    depth_end = torch.sum(weights_thresh_end * z_val, dim=-1)
 
     dist_mask = torch.abs(depth_start - depth_end) > max_var
 
@@ -92,10 +92,10 @@ def calculate_dist_mask(weights, z_vals, dist_area, max_var):
 
 
 @torch.no_grad()
-def extract_surface_geometry_map(weights, z_vals, dist_area, max_var):
-    dist_mask = calculate_dist_mask(weights, z_vals, dist_area=0.5, max_var=0.05)
+def extract_surface_geometry_map(weights, z_val, dist_area, max_var):
+    dist_mask = calculate_dist_mask(weights, z_val, dist_area=0.5, max_var=0.05)
     weights_thresh_mid = calculate_cumlative_weights_thresh(weights, 0.5)
-    depth_median = torch.sum(weights_thresh_mid * z_vals, dim=-1)
+    depth_median = torch.sum(weights_thresh_mid * z_val, dim=-1)
 
     invdepth = 1 / depth_median
     invdepth[dist_mask] = 0
@@ -104,8 +104,8 @@ def extract_surface_geometry_map(weights, z_vals, dist_area, max_var):
 
 
 @torch.no_grad()
-def extract_surface_geometry_points(xyzs, colors, weights, z_vals, dist_area, max_var):
-    dist_mask = calculate_dist_mask(weights, z_vals, dist_area, max_var).to(bool)[..., None, None]
+def extract_surface_geometry_points(xyzs, colors, weights, z_val, dist_area, max_var):
+    dist_mask = calculate_dist_mask(weights, z_val, dist_area, max_var).to(bool)[..., None, None]
     median_mask = calculate_cumlative_weights_thresh(weights, 0.5).to(bool)[..., None]
 
     mask = (dist_mask & median_mask)
@@ -139,10 +139,10 @@ def render_invdepth_thresh(renderer, n, h, w, K, E, n_rays):
         E_fb = E_f[a:b]
 
         _, weights_fb, _, aux_outputs_fb = renderer.render(n_fb, h_fb, w_fb, K_fb, E_fb)
-        z_vals_fb = aux_outputs_fb['z_vals']
+        z_val_fb = aux_outputs_fb['z_val']
 
         invdepth_thresh_fb = extract_surface_geometry_map(
-                                weights_fb, z_vals_fb, dist_area=0.5, max_var=0.05)
+                                weights_fb, z_val_fb, dist_area=0.5, max_var=0.05)
         invdepth_thresh_f[a:b] = invdepth_thresh_fb.cpu()
 
     invdepth_thresh = torch.reshape(invdepth_thresh_f, h.shape)
@@ -174,12 +174,12 @@ def generate_pointcloud(renderer, n, h, w, K, E, n_rays, max_varience, distribut
         E_fb = E_f[a:b].to('cuda')
 
         _, weights_fb, _, aux_outputs_fb = renderer.render(n_fb, h_fb, w_fb, K_fb, E_fb)
-        xyzs_fb = aux_outputs_fb['xyzs']
-        colors_fb = aux_outputs_fb['colors']
-        z_vals_fb = aux_outputs_fb['z_vals']
+        xyzs_fb = aux_outputs_fb['xyz']
+        colors_fb = aux_outputs_fb['color']
+        z_val_fb = aux_outputs_fb['z_val']
 
         points_b, colors_b = extract_surface_geometry_points(
-                                xyzs_fb, colors_fb, weights_fb, z_vals_fb,
+                                xyzs_fb, colors_fb, weights_fb, z_val_fb,
                                 distribution_area, max_varience)
 
         points = torch.cat([points, points_b.cpu()], dim=0)

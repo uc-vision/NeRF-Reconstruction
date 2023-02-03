@@ -7,7 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from loaders.camera_geometry_loader import CameraGeometryLoader
 
-from nerf.nets import NeRFCoordinateWrapper, NeRFNetwork
+from nerf.nets import NeRFCoordinateWrapper, NeRFNetwork, Transform, NeRF
 from nerf.trainer import NeRFTrainer
 from nerf.logger import Logger
 from nerf.metrics import PSNRWrapper, SSIMWrapper, LPIPSWrapper
@@ -35,9 +35,6 @@ def train(cfg : DictConfig) -> None:
         image_scale=cfg.scan.image_scale,
         )
 
-    print(1)
-    exit()
-
     logger.log('Initilising Model...')
     model = NeRFNetwork(
         N = dataloader.images.shape[0],
@@ -56,13 +53,14 @@ def train(cfg : DictConfig) -> None:
         color_num_layers=cfg.nets.color.num_layers,
     ).to('cuda')
 
+    transform = Transform(translation=dataloader.translation_center).to('cuda')
+
     model_coord = NeRFCoordinateWrapper(
         model=model,
-        transform=None,
+        transform=transform,
         inner_bound=cfg.scan.inner_bound,
         outer_bound=cfg.scan.outer_bound,
-        translation_center=dataloader.translation_center
-    )
+    ).to('cuda')
 
     logger.log('Initiating Optimiser...')
     optimizer = torch.optim.Adam([
@@ -101,11 +99,17 @@ def train(cfg : DictConfig) -> None:
         alpha_importance=cfg.renderer_thresh.alpha,
     )
 
+    if cfg.inference.image.image_num == 'middle':
+        rigs_num = dataloader.index_mapping.get_num_rigs()
+        inference_image_num = int(dataloader.index_mapping.src_to_idx(0, rigs_num // 2, 3).item())
+    else:
+        inference_image_num = cfg.inference.image.image_num
+
     inferencers = {
         "image": ImageInference(
-            renderer, dataloader, cfg.trainer.n_rays, cfg.inference.image.image_num),
+            renderer, dataloader, cfg.trainer.n_rays, inference_image_num),
         "invdepth_thresh": InvdepthThreshInference(
-            renderer_thresh, dataloader, cfg.trainer.n_rays, cfg.inference.image.image_num),
+            renderer_thresh, dataloader, cfg.trainer.n_rays, inference_image_num),
         "pointcloud": PointcloudInference(
             renderer_thresh,
             dataloader,
