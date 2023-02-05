@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import torch
 
@@ -30,8 +28,10 @@ def load_calibrations(scan_list, scan_pose_list):
 def load_images(scan_list):
 
     def load_image(undist, image_file):
-        rgb = undist.undistort(scan.loader.rgb.load_image(image_file))
-        return torch.ByteTensor(rgb)
+        rgb = scan.loader.rgb.load_image(image_file)
+        rgb_undist = undist.undistort(rgb)
+        del undist.undistort_map
+        return torch.ByteTensor(rgb_undist)
 
     params = []
 
@@ -44,8 +44,10 @@ def load_images(scan_list):
     images = map_lists(expand(load_image), params)
     for i in range(len(images)):
         images[i] = images[i][0]
+    images_tensor = torch.stack(images, dim=0)
+    del images
 
-    return torch.stack(images, dim=0)
+    return images_tensor
 
 
 def load_depths(scan_list):

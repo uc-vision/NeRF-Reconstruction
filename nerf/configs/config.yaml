@@ -17,19 +17,19 @@ scan:
   frame_ranges:
     - null
   frame_strides:
-    - 2
+    - null
   image_scale: 0.5
   inner_bound: 2
   outer_bound: 2.5
 
 log:
-  root_dir: './nerf/logs/test2'
+  root_dir: './nerf/logs/test3'
   eval_image_freq: end
   eval_pointcloud_freq: end
   save_weights_freq: end
 
 trainer:
-  num_epochs: 30
+  num_epochs: 10
   iters_per_epoch: 100
   n_rays: 16384
   dist_loss_range:
