@@ -35,8 +35,6 @@ def train(cfg : DictConfig) -> None:
         image_scale=cfg.scan.image_scale,
         )
 
-    exit()
-
     logger.log('Initilising Model...')
     model = NeRFNetwork(
         N = dataloader.images.shape[0],
