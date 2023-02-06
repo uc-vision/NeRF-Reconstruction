@@ -231,20 +231,20 @@ class CameraGeometryLoader(object):
 
     def get_pointcloud_batch(self, cams, freq, side_margin, device):
 
-        n = []
         for i in range(self.N):
+            n = []
             s, r, c = self.index_mapping.idx_to_src(i)
             if r > side_margin and r < self.index_mapping.get_num_rigs(s) - side_margin:
                 if c in cams:
                     if r % freq == 0:
                         n.append(i)
-                        
-        n = torch.Tensor(np.array(n)).to(int)
-        h = torch.arange(0, self.H)
-        w = torch.arange(0, self.W)
-        n, h, w = torch.meshgrid(n, h, w, indexing='ij')
 
-        return self.get_custom_batch(n, h, w, background=(1, 1, 1), device=device)
+                n = torch.Tensor(np.array(n)).to(int)
+                h = torch.arange(0, self.H)
+                w = torch.arange(0, self.W)
+                n, h, w = torch.meshgrid(n, h, w, indexing='ij')
+
+                yield self.get_custom_batch(n, h, w, background=(1, 1, 1), device=device)
 
 
     def get_calibration(self, device):

@@ -177,25 +177,25 @@ class Transform(nn.Module):
         self.transform_matrix[:3, 3] = translation
 
     @torch.cuda.amp.autocast(enabled=False)
-    def forward(self, xyzs_a):
+    def forward(self, x_a):
 
-        b = xyzs_a.reshape(-1, 3)
+        b = x_a.reshape(-1, 3)
         b1 = torch.cat([b, b.new_ones((b.shape[0], 1))], dim=1)
         b2 = (self.transform_matrix @ b1.T).T
-        xyzs_b = b2[:, :3].reshape(*xyzs_a.shape)
+        x_b = b2[:, :3].reshape(*x_a.shape)
 
-        return xyzs_b
+        return x_b
 
 
-def mipnerf360_scale(xyzs, bound_inner, bound_outer):
+def mipnerf360_scale(x, bound_inner, bound_outer):
     """ Performes the MIPNeRF360 coordinate warping """
-    if len(xyzs.shape) == 2:
-        d = torch.linalg.norm(xyzs, dim=-1)[..., None].expand(-1, 3)
+    if len(x.shape) == 2:
+        d = torch.linalg.norm(x, dim=-1)[..., None].expand(-1, 3)
     else:
-        d = torch.linalg.norm(xyzs, dim=-1)[..., None].expand(-1, -1, 3)
-    xyzs_warped = torch.clone(xyzs)
-    xyzs_warped[d > bound_inner] = xyzs_warped[d > bound_inner] * ((bound_outer - (bound_outer - bound_inner) / d[d > bound_inner]) / d[d > bound_inner])
-    return xyzs_warped
+        d = torch.linalg.norm(x, dim=-1)[..., None].expand(-1, -1, 3)
+    x_warped = torch.clone(x)
+    x_warped[d > bound_inner] = x_warped[d > bound_inner] * ((bound_outer - (bound_outer - bound_inner) / d[d > bound_inner]) / d[d > bound_inner])
+    return x_warped
 
 
 class NeRFCoordinateWrapper(NeRF):
@@ -229,15 +229,27 @@ class NeRFCoordinateWrapper(NeRF):
 
         return sigmas, rgbs
 
-    def density(self, xyzs):
+    def density(self, x):
         if self.transform is None:
-            xyzs_transform = xyzs
+            x_transform = x
         else:
-            xyzs_transform = self.transform(xyzs)
+            x_transform = self.transform(x)
 
-        xyzs_warped = mipnerf360_scale(xyzs_transform, self.inner_bound, self.outer_bound)
-        xyzs_norm = (xyzs_warped + self.outer_bound) / (2 * self.outer_bound) # to [0, 1]
+        # x_transform_ = torch.clone(x) + self.transform.translation.to('cuda')
 
-        sigmas = self.model.density(xyzs_norm)
+        # print(self.transform.transform_matrix)
+        # print(x_transform.shape)
+        # exit()
+        # print(torch.amax(x_transform, dim=[0, 1]))
+        # print(torch.amin(x_transform, dim=[0, 1]))
+        # exit()
+
+        x_warped = mipnerf360_scale(x_transform, self.inner_bound, self.outer_bound)
+
+        # print(x_transform - x_transform_)
+        # exit()
+        x_norm = (x_warped + self.outer_bound) / (2 * self.outer_bound) # to [0, 1]
+
+        sigmas = self.model.density(x_norm)
 
         return sigmas

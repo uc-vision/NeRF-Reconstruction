@@ -53,11 +53,12 @@ def train(cfg : DictConfig) -> None:
         color_num_layers=cfg.nets.color.num_layers,
     ).to('cuda')
 
-    transform = Transform(translation=dataloader.translation_center).to('cuda')
+    transform = Transform(translation=-dataloader.translation_center).to('cuda')
 
     model_coord = NeRFCoordinateWrapper(
         model=model,
         transform=transform,
+        # transform=None,
         inner_bound=cfg.scan.inner_bound,
         outer_bound=cfg.scan.outer_bound,
     ).to('cuda')
