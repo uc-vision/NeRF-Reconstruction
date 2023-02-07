@@ -32,12 +32,8 @@ trainer:
   num_epochs: 100
   iters_per_epoch: 100
   n_rays: 16384
-  dist_loss_range:
-    - 1e-5
-    - 1e-2
-  depth_loss_range:
-    - 0
-    - 0
+  dist_loss_range: [1e-5, 1e-2]
+  depth_loss_range: [0, 0]
 
 optimizer:
   encoding:
