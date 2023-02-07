@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import torch
 
@@ -30,8 +28,10 @@ def load_calibrations(scan_list, scan_pose_list):
 def load_images(scan_list):
 
     def load_image(undist, image_file):
-        rgb = undist.undistort(scan.loader.rgb.load_image(image_file))
-        return torch.ByteTensor(rgb)
+        rgb = scan.loader.rgb.load_image(image_file)
+        rgb_undist = undist.undistort(rgb)
+        del undist.undistort_map
+        return torch.ByteTensor(rgb_undist)
 
     params = []
 
@@ -44,8 +44,10 @@ def load_images(scan_list):
     images = map_lists(expand(load_image), params)
     for i in range(len(images)):
         images[i] = images[i][0]
+    images_tensor = torch.stack(images, dim=0)
+    del images
 
-    return torch.stack(images, dim=0)
+    return images_tensor
 
 
 def load_depths(scan_list):
@@ -229,20 +231,20 @@ class CameraGeometryLoader(object):
 
     def get_pointcloud_batch(self, cams, freq, side_margin, device):
 
-        n = []
         for i in range(self.N):
+            n = []
             s, r, c = self.index_mapping.idx_to_src(i)
             if r > side_margin and r < self.index_mapping.get_num_rigs(s) - side_margin:
                 if c in cams:
                     if r % freq == 0:
                         n.append(i)
-                        
-        n = torch.Tensor(np.array(n)).to(int)
-        h = torch.arange(0, self.H)
-        w = torch.arange(0, self.W)
-        n, h, w = torch.meshgrid(n, h, w, indexing='ij')
 
-        return self.get_custom_batch(n, h, w, background=(1, 1, 1), device=device)
+                n = torch.Tensor(np.array(n)).to(int)
+                h = torch.arange(0, self.H)
+                w = torch.arange(0, self.W)
+                n, h, w = torch.meshgrid(n, h, w, indexing='ij')
+
+                yield self.get_custom_batch(n, h, w, background=(1, 1, 1), device=device)
 
 
     def get_calibration(self, device):

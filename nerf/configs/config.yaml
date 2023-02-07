@@ -17,27 +17,23 @@ scan:
   frame_ranges:
     - null
   frame_strides:
-    - 2
+    - null
   image_scale: 0.5
   inner_bound: 2
   outer_bound: 2.5
 
 log:
-  root_dir: './nerf/logs/test2'
+  root_dir: './nerf/logs/test6'
   eval_image_freq: end
   eval_pointcloud_freq: end
-  save_weights_freq: end
+  save_weights_freq: null
 
 trainer:
-  num_epochs: 30
+  num_epochs: 100
   iters_per_epoch: 100
   n_rays: 16384
-  dist_loss_range:
-    - 1e-5
-    - 1e-2
-  depth_loss_range:
-    - 0
-    - 0
+  dist_loss_range: [1e-5, 1e-2]
+  depth_loss_range: [0, 0]
 
 optimizer:
   encoding:
@@ -59,12 +55,12 @@ inference:
     image_num: 'middle'
 
   pointcloud:
-    max_variance: 0.05
+    max_variance: 0.02
     distribution_area: 0.5
 
-    side_margin: 3
+    side_margin: 10
     cams: [2, 3]
-    freq: 3
+    freq: 10
 
 renderer:
   steps:

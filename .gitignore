@@ -2,7 +2,6 @@
 /**/*.pyc
 /**/*.o
 /**/*.so
-/**/*.png
 /**/__pycache__
 /**/.hydra
 /**/outputs

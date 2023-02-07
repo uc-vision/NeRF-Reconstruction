@@ -86,7 +86,7 @@ def calculate_dist_mask(weights, z_val, dist_area, max_var):
     depth_start = torch.sum(weights_thresh_start * z_val, dim=-1)
     depth_end = torch.sum(weights_thresh_end * z_val, dim=-1)
 
-    dist_mask = torch.abs(depth_start - depth_end) > max_var
+    dist_mask = torch.abs(depth_start - depth_end) < max_var
 
     return dist_mask
 
@@ -153,6 +153,9 @@ def render_invdepth_thresh(renderer, n, h, w, K, E, n_rays):
 @torch.no_grad()
 def generate_pointcloud(renderer, n, h, w, K, E, n_rays, max_varience, distribution_area):
 
+    points = torch.zeros((0, 3), device='cpu')
+    colors = torch.zeros((0, 3), device='cpu')
+
     n_f = torch.reshape(n, (-1,))
     h_f = torch.reshape(h, (-1,))
     w_f = torch.reshape(w, (-1,))
@@ -160,10 +163,7 @@ def generate_pointcloud(renderer, n, h, w, K, E, n_rays, max_varience, distribut
     K_f = torch.reshape(K, (-1, 3, 3))
     E_f = torch.reshape(E, (-1, 4, 4))
 
-    points = torch.zeros((0, 3), device='cpu')
-    colors = torch.zeros((0, 3), device='cpu')
-
-    for a in tqdm(range(0, len(n_f), n_rays)):
+    for a in range(0, len(n_f), n_rays):
         b = min(len(n_f), a+n_rays)
 
         n_fb = n_f[a:b].to('cuda')
@@ -185,10 +185,12 @@ def generate_pointcloud(renderer, n, h, w, K, E, n_rays, max_varience, distribut
         points = torch.cat([points, points_b.cpu()], dim=0)
         colors = torch.cat([colors, colors_b.cpu()], dim=0)
 
-    pointcloud = {}
-    pointcloud['points'] = points
-    pointcloud['colors'] = colors
-    return pointcloud
+    return points, colors
+
+    # pointcloud = {}
+    # pointcloud['points'] = points
+    # pointcloud['colors'] = colors
+    # return pointcloud
 
 
 class ImageInference(object):
@@ -244,11 +246,31 @@ class PointcloudInference(object):
         self.side_margin = side_margin
 
     def __call__(self):
-        n, h, w, K, E, _, _, _ = self.dataloader.get_pointcloud_batch(
-            self.cams, self.freq, self.side_margin, device='cpu')
-        return generate_pointcloud(
-            self.renderer,
-            n, h, w, K, E,
-            self.n_rays,
-            self.max_variance,
-            self.distribution_area)
+
+        points = torch.zeros((0, 3), device='cpu')
+        colors = torch.zeros((0, 3), device='cpu')
+
+        for n, h, w, K, E, _, _, _ in tqdm(self.dataloader.get_pointcloud_batch(
+            self.cams, self.freq, self.side_margin, device='cpu'), total=self.dataloader.N):
+
+            if len(n) == 0:
+                continue
+
+            points_, colors_ = generate_pointcloud(
+                self.renderer,
+                n, h, w, K, E,
+                self.n_rays,
+                self.max_variance,
+                self.distribution_area)
+            
+            # print(points_.shape)
+
+            points = torch.cat([points, points_.cpu()], dim=0)
+            colors = torch.cat([colors, colors_.cpu()], dim=0)
+        print()
+        print(points.shape)
+            
+        pointcloud = {}
+        pointcloud['points'] = points
+        pointcloud['colors'] = colors
+        return pointcloud
