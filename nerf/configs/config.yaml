@@ -11,25 +11,25 @@ hydra:
 
 scan:
   scan_paths:
-    - /home/casey/PhD/data/conan_scans/ROW_349_EAST_SLOW_0006/scene.json
+    - /mnt/maara/plant_and_food/tonemapped/2022-08-31/jpeg_north/refined_5cm.json
   scan_pose_paths:
     - null
   frame_ranges:
     - null
   frame_strides:
     - null
-  image_scale: 0.5
+  image_scale: 0.25
   inner_bound: 2
   outer_bound: 2.5
 
 log:
-  root_dir: './nerf/logs/test6'
+  root_dir: './nerf/logs/plant_and_food'
   eval_image_freq: end
   eval_pointcloud_freq: end
   save_weights_freq: null
 
 trainer:
-  num_epochs: 100
+  num_epochs: 10
   iters_per_epoch: 100
   n_rays: 16384
   dist_loss_range: [1e-5, 1e-2]
@@ -69,11 +69,11 @@ renderer:
     - 64
     - 32
   z_bounds:
+    - 0.01
     - 0.1
     - 1
     - 10
     - 100
-    - 1000
 
   importance_steps: 128
   alpha: 0.2
