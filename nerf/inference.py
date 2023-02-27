@@ -93,12 +93,12 @@ def calculate_dist_mask(weights, z_val, dist_area, max_var):
 
 @torch.no_grad()
 def extract_surface_geometry_map(weights, z_val, dist_area, max_var):
-    dist_mask = calculate_dist_mask(weights, z_val, dist_area=0.5, max_var=0.05)
+    dist_mask = calculate_dist_mask(weights, z_val, dist_area, max_var)
     weights_thresh_mid = calculate_cumlative_weights_thresh(weights, 0.5)
     depth_median = torch.sum(weights_thresh_mid * z_val, dim=-1)
 
     invdepth = 1 / depth_median
-    invdepth[dist_mask] = 0
+    invdepth[~dist_mask] = 0
     invdepth[depth_median == 0] = 0
     return invdepth
 

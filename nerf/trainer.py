@@ -100,6 +100,11 @@ class NeRFTrainer(object):
             self.logger.log('')
             
             # Log useful data
+            if self.save_weights_freq is not None:
+                if (epoch+1) % self.save_weights_freq == 0:
+                    self.logger.log('Saving Model...')
+                    self.logger.model(self.model, self.iter)
+                    
             if self.eval_image_freq is not None:
                 if (epoch+1) % self.eval_image_freq == 0:
                     self.logger.log('Rending Image...')
@@ -118,11 +123,6 @@ class NeRFTrainer(object):
                     self.logger.log('Generating Pointcloud...')
                     pointcloud = self.inferencers['pointcloud']()
                     self.logger.pointcloud(convert_pointcloud(pointcloud), self.iter)
-
-            if self.save_weights_freq is not None:
-                if (epoch+1) % self.save_weights_freq == 0:
-                    self.logger.log('Saving Model...')
-                    self.logger.model(self.model, self.iter)
 
 
     def train_epoch(self, iters_per_epoch:int):

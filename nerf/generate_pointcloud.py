@@ -2,6 +2,7 @@ import hydra
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import open3d as o3d
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -14,33 +15,36 @@ from nerf.metrics import PSNRWrapper, SSIMWrapper, LPIPSWrapper
 from nerf.render import Render
 from nerf.inference import ImageInference, InvdepthThreshInference, PointcloudInference
 
-# from misc import configurator
+
+def convert_pointcloud(pointcloud_npy):
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(pointcloud_npy['points'])
+    pcd.colors = o3d.utility.Vector3dVector(pointcloud_npy['colors'])
+    return pcd
 
 
 @hydra.main(version_base=None, config_path="./configs", config_name="config")
-def train(cfg : DictConfig) -> None:
+def generate_pointcloud(cfg : DictConfig) -> None:
 
 
-    logger = Logger(
-        root_dir=cfg.log.root_dir,
-        cfg=cfg,
-        )
+    # logger = Logger(
+    #     root_dir=cfg.log.root_dir,
+    #     cfg=cfg,
+    #     )
 
-    logger.log('Initiating Dataloader...')
+    # logger.log('Initiating Dataloader...')
     dataloader = CameraGeometryLoader(
         scan_paths=cfg.scan.scan_paths,
         scan_pose_paths=cfg.scan.scan_pose_paths,
         frame_ranges=cfg.scan.frame_ranges,
         frame_strides=cfg.scan.frame_strides,
         image_scale=cfg.scan.image_scale,
+        load_images_bool=False,
         )
     
-    # print(torch.amin(dataloader.extrinsics[:, :3, 3], dim=0), torch.amax(dataloader.extrinsics[:, :3, 3], dim=0))
-    # print(dataloader.translation_center)
-
-    logger.log('Initilising Model...')
+    # logger.log('Initilising Model...')
     model = NeRFNetwork(
-        N = dataloader.images.shape[0],
+        N = dataloader.extrinsics.shape[0],
         encoding_precision=cfg.nets.encoding.precision,
         encoding_n_levels=cfg.nets.encoding.n_levels,
         encoding_n_features_per_level=cfg.nets.encoding.n_features_per_level,
@@ -55,6 +59,7 @@ def train(cfg : DictConfig) -> None:
         color_hidden_dim=cfg.nets.color.hidden_dim,
         color_num_layers=cfg.nets.color.num_layers,
     ).to('cuda')
+    model.load_state_dict(torch.load("./nerf/logs/plant_and_food/test2/20230220_194316/model/10000.pth"))
 
     transform = Transform(translation=-dataloader.translation_center).to('cuda')
 
@@ -65,27 +70,6 @@ def train(cfg : DictConfig) -> None:
         inner_bound=cfg.scan.inner_bound,
         outer_bound=cfg.scan.outer_bound,
     ).to('cuda')
-
-    logger.log('Initiating Optimiser...')
-    optimizer = torch.optim.Adam([
-            {'name': 'encoding', 'params': list(model.encoder.parameters()), 'lr': cfg.optimizer.encoding.lr},
-            {'name': 'latent_emb', 'params': [model.latent_emb], 'lr': cfg.optimizer.latent_emb.lr},
-            {'name': 'net', 'params': list(model.sigma_net.parameters()) + list(model.color_net.parameters()), 'weight_decay': cfg.optimizer.net.weight_decay, 'lr': cfg.optimizer.net.lr},
-        ], betas=cfg.optimizer.betas, eps=cfg.optimizer.eps)
-
-    if cfg.scheduler == 'step':
-        lmbda = lambda x: 1
-    elif cfg.scheduler == 'exp_decay':
-        lmbda = lambda x: 0.1**(x/(cfg.trainer.num_epochs*cfg.trainer.iters_per_epoch))
-    else:
-        raise ValueError
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lmbda, last_epoch=-1, verbose=False)
-
-    metrics = {
-        "eval_lpips": LPIPSWrapper(),
-        "eval_ssim": SSIMWrapper(),
-        "eval_psnr": PSNRWrapper(),
-    }
 
     renderer = Render(
         models=model_coord,
@@ -124,35 +108,9 @@ def train(cfg : DictConfig) -> None:
             cfg.inference.pointcloud.freq,
             cfg.inference.pointcloud.side_margin)
     }
-    
-    logger.log('Initiating Trainer...')
-    trainer = NeRFTrainer(
-        model=model,
-        dataloader=dataloader,
-        logger=logger,
-        renderer=renderer,
-        inferencers=inferencers,
 
-        optimizer=optimizer,
-        scheduler=scheduler, 
-        
-        n_rays=cfg.trainer.n_rays,
-        num_epochs=cfg.trainer.num_epochs,
-        iters_per_epoch=cfg.trainer.iters_per_epoch,
-
-        dist_loss_range=cfg.trainer.dist_loss_range,
-        depth_loss_range=cfg.trainer.depth_loss_range,
-
-        eval_image_freq=cfg.log.eval_image_freq,
-        eval_pointcloud_freq=cfg.log.eval_pointcloud_freq,
-        save_weights_freq=cfg.log.save_weights_freq,
-
-        metrics=metrics,
-        )
-
-    logger.log('Beginning Training...\n')
-    trainer.train()
-
+    pointcloud = inferencers['pointcloud']()
+    o3d.io.write_point_cloud("./nerf/outputs/plant_and_food_3e2_3.pcd", convert_pointcloud(pointcloud))
 
 if __name__ == '__main__':
-    train()
+    generate_pointcloud()
