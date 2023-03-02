@@ -10,32 +10,28 @@ hydra:
 
 
 scan:
-  scan_paths:
-    - /home/casey/Uni/data/plant_and_food/tonemapped/2022-08-31/jpeg_north_resized/refined_5cm.json
-  scan_pose_paths:
-    - null
-  frame_ranges:
-    - null
-  frame_strides:
-    - null
-  # image_scale: 0.0625
-  image_scale: 1
-  # image_scale: 0.25
+  # image_scale: 0.5
   inner_bound: 4
   outer_bound: 5
 
 log:
-  root_dir: './nerf/logs/plant_and_food/test3'
-  eval_image_freq: end
-  eval_pointcloud_freq: null
+  root_dir: './neus/logs/test/lego3'
+  eval_image_freq: 20
+  eval_pointcloud_freq: end
   save_weights_freq: end
 
 trainer:
-  num_epochs: 100
+  num_epochs: 3000
   iters_per_epoch: 100
-  n_rays: 16384
-  dist_loss_range: [1e-5, 1e-2]
-  depth_loss_range: [0, 0]
+  # n_rays: 16384
+  n_rays: 4096
+  # n_rays: 1024
+  dist_loss_range:
+    - 0
+    - 0
+  depth_loss_range:
+    - 0
+    - 0
 
 optimizer:
   encoding:
@@ -50,51 +46,44 @@ optimizer:
     - 0.99
   eps: 1e-15
 
-scheduler: step
+scheduler: warmup
 
 inference:
   image:
-    image_num: 'middle'
+    image_num: 33
 
   pointcloud:
-    max_variance: 0.02
-    distribution_area: 0.4
+    max_variance: 0.05
+    distribution_area: 0.5
 
-    side_margin: 0
-    cams: [0]
-    freq: 10
+    side_margin: 3
+    cams: [1, 2, 3, 4]
+    freq: 3
 
 renderer:
   steps:
-    - 256
     - 128
-    - 64
-    - 32
   z_bounds:
-    - 0.5
     - 2
-    - 20
-    - 200
-    - 2000
+    - 6
 
   importance_steps: 128
   alpha: 0.2
 
 renderer_thresh:
   steps:
-    - 256
+    - 128
   z_bounds:
-    - 0.5
     - 2
+    - 6
   importance_steps: 128
   alpha: 0.2
-
 
 nets:
   encoding:
     n_levels: 20
     n_features_per_level: 2
-    log2_hashmap_size: 24
+    log2_hashmap_size: 19
     precision: float32
   
   encoding_dir:

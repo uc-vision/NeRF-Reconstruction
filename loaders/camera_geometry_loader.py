@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import gc
 
 from tqdm import tqdm
 from pathlib import Path
@@ -46,6 +47,7 @@ def load_images(scan_list):
         images[i] = images[i][0]
     images_tensor = torch.stack(images, dim=0)
     del images
+    gc.collect()
 
     return images_tensor
 
@@ -164,6 +166,9 @@ class CameraGeometryLoader(object):
 
         if self.load_images_bool:
             self.images = load_images(scan_list)
+        else:
+            self.images = torch.zeros((self.N, self.H, self.W, 3), dtype=torch.uint8)
+            self.load_images_bool = True
 
         if self.load_depths_bool:
             self.depths = load_depths(scan_list)

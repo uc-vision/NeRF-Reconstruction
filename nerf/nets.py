@@ -217,10 +217,12 @@ class NeRFCoordinateWrapper(NeRF):
         self.outer_bound = outer_bound
 
     def forward(self, x, d, n):
+        # print("x: ", x.amin(), x.amax())
         if self.transform is None:
             x_transform = x
         else:
             x_transform = self.transform(x)
+        # print("x_transform: ", x_transform.amin(), x_transform.amax())
 
         x_warped = mipnerf360_scale(x_transform, self.inner_bound, self.outer_bound)
         x_norm = (x_warped + self.outer_bound) / (2 * self.outer_bound) # to [0, 1]

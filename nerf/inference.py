@@ -187,10 +187,51 @@ def generate_pointcloud(renderer, n, h, w, K, E, n_rays, max_varience, distribut
 
     return points, colors
 
-    # pointcloud = {}
-    # pointcloud['points'] = points
-    # pointcloud['colors'] = colors
-    # return pointcloud
+
+@torch.no_grad()
+def generate_pointcloud2(renderer, n, h, w, K, E, n_rays, max_varience, distribution_area):
+
+    points = torch.zeros((0, 3), device='cpu')
+    colors = torch.zeros((0, 3), device='cpu')
+
+    n_f = torch.reshape(n, (-1,))
+    h_f = torch.reshape(h, (-1,))
+    w_f = torch.reshape(w, (-1,))
+
+    K_f = torch.reshape(K, (-1, 3, 3))
+    E_f = torch.reshape(E, (-1, 4, 4))
+
+    for a in range(0, len(n_f), n_rays):
+        b = min(len(n_f), a+n_rays)
+
+        n_fb = n_f[a:b].to('cuda')
+        h_fb = h_f[a:b].to('cuda')
+        w_fb = w_f[a:b].to('cuda')
+
+        K_fb = K_f[a:b].to('cuda')
+        E_fb = E_f[a:b].to('cuda')
+
+        _, weights_fb, _, aux_outputs_fb = renderer.render(n_fb, h_fb, w_fb, K_fb, E_fb)
+        xyzs_fb = aux_outputs_fb['xyz']
+        colors_fb = aux_outputs_fb['color']
+        z_val_fb = aux_outputs_fb['z_val']
+
+        sigma_fb = aux_outputs_fb['sigma']
+        color_fb = aux_outputs_fb['color']
+
+        # points_b, colors_b = extract_surface_geometry_points(
+        #                         xyzs_fb, colors_fb, weights_fb, z_val_fb,
+        #                         distribution_area, max_varience)
+        
+        # print(sigma_fb.shape, colors_fb.shape)
+        thresh = 200
+        points_b = xyzs_fb[(sigma_fb > thresh)[..., None].expand(*xyzs_fb.shape)]
+        colors_b = colors_fb[(sigma_fb > thresh)[..., None].expand(*colors_fb.shape)]
+
+        points = torch.cat([points, points_b.view(-1, 3).cpu()], dim=0)
+        colors = torch.cat([colors, colors_b.view(-1, 3).cpu()], dim=0)
+
+    return points, colors
 
 
 class ImageInference(object):

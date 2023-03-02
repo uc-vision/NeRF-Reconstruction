@@ -17,24 +17,24 @@ scan:
   frame_ranges:
     - null
   frame_strides:
-    - null
+    - 4
   # image_scale: 0.0625
+  # image_scale: 0.125
   image_scale: 1
-  # image_scale: 0.25
   inner_bound: 4
   outer_bound: 5
 
 log:
-  root_dir: './nerf/logs/plant_and_food/test3'
+  root_dir: './neus/logs/plant_and_food/test3'
   eval_image_freq: end
   eval_pointcloud_freq: null
-  save_weights_freq: end
+  save_weights_freq: null
 
 trainer:
-  num_epochs: 100
-  iters_per_epoch: 100
-  n_rays: 16384
-  dist_loss_range: [1e-5, 1e-2]
+  num_epochs: 10
+  iters_per_epoch: 33
+  n_rays: 1024
+  dist_loss_range: [0, 0]
   depth_loss_range: [0, 0]
 
 optimizer:
@@ -57,12 +57,12 @@ inference:
     image_num: 'middle'
 
   pointcloud:
-    max_variance: 0.02
+    max_variance: 0.1
     distribution_area: 0.4
 
     side_margin: 0
     cams: [0]
-    freq: 10
+    freq: 100
 
 renderer:
   steps:

@@ -26,13 +26,12 @@ def convert_pointcloud(pointcloud_npy):
 @hydra.main(version_base=None, config_path="./configs", config_name="config")
 def generate_pointcloud(cfg : DictConfig) -> None:
 
+    cfg_nerf = OmegaConf.load("./nerf/logs/plant_and_food/test2/20230217_142603/config.yaml")
 
     # logger = Logger(
     #     root_dir=cfg.log.root_dir,
     #     cfg=cfg,
     #     )
-
-    cfg_nerf = OmegaConf.load("./nerf/logs/plant_and_food/test3/20230302_152237/config.yaml")
 
     # logger.log('Initiating Dataloader...')
     dataloader = CameraGeometryLoader(
@@ -62,7 +61,7 @@ def generate_pointcloud(cfg : DictConfig) -> None:
         color_num_layers=cfg_nerf.nets.color.num_layers,
     ).to('cuda')
     # model.load_state_dict(torch.load("./nerf/logs/plant_and_food/test2/20230220_194316/model/10000.pth"))
-    model.load_state_dict(torch.load("./nerf/logs/plant_and_food/test3/20230302_152237/model/10000.pth"))
+    model.load_state_dict(torch.load("./nerf/logs/plant_and_food/test2/20230217_142603/30000.pth"))
 
     transform = Transform(translation=-dataloader.translation_center).to('cuda')
 
@@ -108,12 +107,12 @@ def generate_pointcloud(cfg : DictConfig) -> None:
             cfg_nerf.inference.pointcloud.distribution_area,
             cfg_nerf.trainer.n_rays,
             cfg_nerf.inference.pointcloud.cams,
-            cfg_nerf.inference.pointcloud.freq * 10,
+            cfg_nerf.inference.pointcloud.freq,
             cfg_nerf.inference.pointcloud.side_margin)
     }
 
-    pointcloud = inferencers['pointcloud']()
-    o3d.io.write_point_cloud("./nerf/logs/plant_and_food/test3/20230302_152237/pointclouds/10000.pcd", convert_pointcloud(pointcloud))
+    # pointcloud = inferencers['pointcloud']()
+    # o3d.io.write_point_cloud("./nerf/outputs/pretrain1.pcd", convert_pointcloud(pointcloud))
 
 if __name__ == '__main__':
     generate_pointcloud()
