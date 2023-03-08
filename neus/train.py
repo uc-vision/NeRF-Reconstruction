@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from omegaconf import DictConfig, OmegaConf
 
 from loaders.camera_geometry_loader import CameraGeometryLoader
+from loaders.synthetic import SyntheticLoader
 
 from nerf.nets import NeRFCoordinateWrapper, NeRFNetwork, Transform, NeRF
 from nerf.trainer import NeRFTrainer
@@ -16,8 +17,9 @@ from nerf.render import Render
 
 # from nets import NeRFCoordinateWrapper, NeRFNetwork
 from neus.trainer import NeusNeRFTrainer
-from neus.render2 import NeuSRenderer
+from neus.render import NeuSRenderer
 from neus.inference import ImageInference
+from neus.nets import SDFNetwork, RenderingNetwork, SingleVarianceNetwork
 
 # from misc import configurator
 
@@ -39,97 +41,101 @@ def train(cfg : DictConfig) -> None:
         )
 
     ### Load OG NeRF
-    logger.log('Initiating Dataloader...')
-    dataloader = CameraGeometryLoader(
-        scan_paths=cfg_nerf.scan.scan_paths,
-        scan_pose_paths=cfg_nerf.scan.scan_pose_paths,
-        frame_ranges=cfg_nerf.scan.frame_ranges,
-        frame_strides=cfg_nerf.scan.frame_strides,
-        image_scale=cfg_nerf.scan.image_scale,
-        # load_images_bool=False,
+    if cfg.nerf_init.path is not None:
+        logger.log('Initiating Dataloader...')
+        if cfg_nerf.scan.loader == "camera_geometry":
+            dataloader_nerf = CameraGeometryLoader(
+                scan_paths=cfg_nerf.scan.scan_paths,
+                scan_pose_paths=cfg_nerf.scan.scan_pose_paths,
+                frame_ranges=cfg_nerf.scan.frame_ranges,
+                frame_strides=cfg_nerf.scan.frame_strides,
+                image_scale=cfg_nerf.scan.image_scale,
+                load_images_bool=False,
+                )
+        elif cfg.nerf.scan.loader == "synthetic":
+            dataloader_nerf = SyntheticLoader(
+                scan_path=cfg_nerf.scan.scan_paths,
+                frame_range=cfg_nerf.scan.frame_ranges,
+                frame_stride=cfg_nerf.scan.frame_strides,
+                image_scale=cfg_nerf.scan.image_scale,
+                load_images_bool=False,
+                )
+
+        
+        logger.log('Initilising Model...')
+        model_nerf = NeRFNetwork(
+            N = dataloader_nerf.N,
+            encoding_precision=cfg_nerf.nets.encoding.precision,
+            encoding_n_levels=cfg_nerf.nets.encoding.n_levels,
+            encoding_n_features_per_level=cfg_nerf.nets.encoding.n_features_per_level,
+            encoding_log2_hashmap_size=cfg_nerf.nets.encoding.log2_hashmap_size,
+            geo_feat_dim=cfg_nerf.nets.sigma.geo_feat_dim,
+            sigma_hidden_dim=cfg_nerf.nets.sigma.hidden_dim,
+            sigma_num_layers=cfg_nerf.nets.sigma.num_layers,
+            encoding_dir_precision=cfg_nerf.nets.encoding_dir.precision,
+            encoding_dir_encoding=cfg_nerf.nets.encoding_dir.encoding,
+            encoding_dir_degree=cfg_nerf.nets.encoding_dir.degree,
+            latent_embedding_dim=cfg_nerf.nets.latent_embedding.features,
+            color_hidden_dim=cfg_nerf.nets.color.hidden_dim,
+            color_num_layers=cfg_nerf.nets.color.num_layers,
+        ).to('cuda')
+        model_nerf.load_state_dict(torch.load(cfg.nerf_init.path))
+
+        transform = Transform(translation=-dataloader_nerf.translation_center()).to('cuda')
+
+        model_nerf_coord = NeRFCoordinateWrapper(
+            model=model_nerf,
+            transform=transform,
+            inner_bound=cfg.scan.inner_bound,
+            outer_bound=cfg.scan.outer_bound,
+        ).to('cuda')
+
+        renderer_nerf = Render(
+            models=model_nerf_coord,
+            steps_firstpass=cfg_nerf.renderer_thresh.steps,
+            z_bounds=cfg_nerf.renderer_thresh.z_bounds,
+            steps_importance=cfg_nerf.renderer_thresh.importance_steps,
+            alpha_importance=cfg_nerf.renderer_thresh.alpha,
         )
+    else:
+        renderer_nerf = None
 
-    
-    logger.log('Initilising Model...')
-    model = NeRFNetwork(
-        N = dataloader.extrinsics.shape[0],
-        encoding_precision=cfg_nerf.nets.encoding.precision,
-        encoding_n_levels=cfg_nerf.nets.encoding.n_levels,
-        encoding_n_features_per_level=cfg_nerf.nets.encoding.n_features_per_level,
-        encoding_log2_hashmap_size=cfg_nerf.nets.encoding.log2_hashmap_size,
-        geo_feat_dim=cfg_nerf.nets.sigma.geo_feat_dim,
-        sigma_hidden_dim=cfg_nerf.nets.sigma.hidden_dim,
-        sigma_num_layers=cfg_nerf.nets.sigma.num_layers,
-        encoding_dir_precision=cfg_nerf.nets.encoding_dir.precision,
-        encoding_dir_encoding=cfg_nerf.nets.encoding_dir.encoding,
-        encoding_dir_degree=cfg_nerf.nets.encoding_dir.degree,
-        latent_embedding_dim=cfg_nerf.nets.latent_embedding.features,
-        color_hidden_dim=cfg_nerf.nets.color.hidden_dim,
-        color_num_layers=cfg_nerf.nets.color.num_layers,
-    ).to('cuda')
-    model.load_state_dict(torch.load("./nerf/logs/plant_and_food/test3/20230302_152237/model/10000.pth"))
+    ### Init SDF NeRF
+    if cfg.scan.loader == "camera_geometry":
+        dataloader = CameraGeometryLoader(
+            scan_paths=cfg.scan.scan_paths,
+            scan_pose_paths=cfg.scan.scan_pose_paths,
+            frame_ranges=cfg.scan.frame_ranges,
+            frame_strides=cfg.scan.frame_strides,
+            image_scale=cfg.scan.image_scale,
+            )
+    elif cfg.scan.loader == "synthetic":
+        dataloader = SyntheticLoader(
+            scan_path=cfg.scan.scan_paths[0],
+            frame_range=cfg.scan.frame_ranges[0],
+            frame_stride=cfg.scan.frame_strides[0],
+            image_scale=cfg.scan.image_scale,
+            )
+        
+    sdf_network = SDFNetwork().to("cuda")
+    color_network = RenderingNetwork().to("cuda")
+    deviation_network = SingleVarianceNetwork(0.6).to("cuda")
 
-    transform = Transform(translation=-dataloader.translation_center).to('cuda')
 
-    model_coord = NeRFCoordinateWrapper(
-        model=model,
-        transform=transform,
-        inner_bound=cfg.scan.inner_bound,
-        outer_bound=cfg.scan.outer_bound,
-    ).to('cuda')
-
-    metrics = {
-        "eval_lpips": LPIPSWrapper(),
-        "eval_ssim": SSIMWrapper(),
-        "eval_psnr": PSNRWrapper(),
-    }
-
-    renderer = Render(
-        models=model_coord,
-        steps_firstpass=cfg_nerf.renderer.steps,
-        z_bounds=cfg_nerf.renderer.z_bounds,
-        steps_importance=cfg_nerf.renderer.importance_steps,
-        alpha_importance=cfg_nerf.renderer.alpha,
-    )
-
-    renderer_thresh = Render(
-        models=model_coord,
-        steps_firstpass=cfg_nerf.renderer_thresh.steps,
-        z_bounds=cfg_nerf.renderer_thresh.z_bounds,
-        steps_importance=cfg_nerf.renderer_thresh.importance_steps,
-        alpha_importance=cfg_nerf.renderer_thresh.alpha,
-    )
+    renderer_sdf = NeuSRenderer(
+        sdf_network=sdf_network,
+        color_network=color_network,
+        deviation_network=deviation_network,
+        renderer_nerf=renderer_nerf,
+        steps_firstpass=cfg.renderer.steps,
+        z_bounds=cfg.renderer.z_bounds,
+        )
 
     if cfg_nerf.inference.image.image_num == 'middle':
         rigs_num = dataloader.index_mapping.get_num_rigs()
         inference_image_num = int(dataloader.index_mapping.src_to_idx(0, rigs_num // 2, 3).item())
     else:
         inference_image_num = cfg_nerf.inference.image.image_num
-
-    # inferencers = {
-    #     "image": ImageInference(
-    #         renderer, dataloader, cfg_nerf.trainer.n_rays, inference_image_num),
-    #     "invdepth_thresh": InvdepthThreshInference(
-    #         renderer_thresh, dataloader, cfg_nerf.trainer.n_rays, inference_image_num),
-    #     "pointcloud": PointcloudInference(
-    #         renderer_thresh,
-    #         dataloader,
-    #         cfg_nerf.inference.pointcloud.max_variance,
-    #         cfg_nerf.inference.pointcloud.distribution_area,
-    #         cfg_nerf.trainer.n_rays,
-    #         cfg_nerf.inference.pointcloud.cams,
-    #         cfg_nerf.inference.pointcloud.freq,
-    #         cfg_nerf.inference.pointcloud.side_margin)
-    # }
-
-    ### Finish Load OG NeRF
-
-    ### Init SDF NeRF
-    renderer_sdf = NeuSRenderer(
-        renderer_nerf=renderer_thresh,
-        )
-
-    ### Fish init SDF NeRF
 
     logger.log('Initiating Optimiser...')
     optimizer = torch.optim.Adam([
@@ -168,7 +174,6 @@ def train(cfg : DictConfig) -> None:
     
     logger.log('Initiating Trainer...')
     trainer = NeusNeRFTrainer(
-        # model=model,
         dataloader=dataloader,
         logger=logger,
         renderer=renderer_sdf,
@@ -181,8 +186,8 @@ def train(cfg : DictConfig) -> None:
         num_epochs=cfg.trainer.num_epochs,
         iters_per_epoch=cfg.trainer.iters_per_epoch,
 
-        dist_loss_range=cfg.trainer.dist_loss_range,
-        depth_loss_range=cfg.trainer.depth_loss_range,
+        # dist_loss_range=cfg.trainer.dist_loss_range,
+        # depth_loss_range=cfg.trainer.depth_loss_range,
 
         eval_image_freq=cfg.log.eval_image_freq,
         eval_pointcloud_freq=cfg.log.eval_pointcloud_freq,

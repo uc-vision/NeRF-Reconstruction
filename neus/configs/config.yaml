@@ -10,22 +10,22 @@ hydra:
 
 
 scan:
+  # loader: 'camera_geometry'
+  loader: 'synthetic'
   scan_paths:
-    - /home/casey/Uni/data/plant_and_food/tonemapped/2022-08-31/jpeg_north_resized/refined_5cm.json
+    # - /home/casey/Uni/data/plant_and_food/tonemapped/2022-08-31/jpeg_north_resized/refined_5cm.json
+    - /home/casey/PhD/data/nerf_datasets/nerf_synthetic/lego
   scan_pose_paths:
     - null
   frame_ranges:
     - null
   frame_strides:
-    - 4
-  # image_scale: 0.0625
-  # image_scale: 0.125
+    - null
   image_scale: 1
-  inner_bound: 4
-  outer_bound: 5
+  bound: 4
 
 log:
-  root_dir: './neus/logs/plant_and_food/test3'
+  root_dir: './neus/logs/synthetic/test2'
   eval_image_freq: end
   eval_pointcloud_freq: null
   save_weights_freq: null
@@ -34,8 +34,15 @@ trainer:
   num_epochs: 10
   iters_per_epoch: 33
   n_rays: 1024
-  dist_loss_range: [0, 0]
-  depth_loss_range: [0, 0]
+
+renderer:
+  steps:
+    - 256
+  z_bounds:
+    - 2
+    - 6
+  importance_steps: 128
+  alpha: 0.2
 
 optimizer:
   encoding:
@@ -52,43 +59,8 @@ optimizer:
 
 scheduler: step
 
-inference:
-  image:
-    image_num: 'middle'
-
-  pointcloud:
-    max_variance: 0.1
-    distribution_area: 0.4
-
-    side_margin: 0
-    cams: [0]
-    freq: 100
-
-renderer:
-  steps:
-    - 256
-    - 128
-    - 64
-    - 32
-  z_bounds:
-    - 0.5
-    - 2
-    - 20
-    - 200
-    - 2000
-
-  importance_steps: 128
-  alpha: 0.2
-
-renderer_thresh:
-  steps:
-    - 256
-  z_bounds:
-    - 0.5
-    - 2
-  importance_steps: 128
-  alpha: 0.2
-
+nerf_init:
+  path: null
 
 nets:
   encoding:

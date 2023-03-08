@@ -158,17 +158,17 @@ class CameraGeometryLoader(object):
 
         self.intrinsics, self.extrinsics = load_calibrations(scan_list, scan_pose_list)
 
-        self.N = self.intrinsics.shape[0]
-        self.H = scan_list[0].common_image_size()[1]
-        self.W = scan_list[0].common_image_size()[0]
+        # self.N = self.intrinsics.shape[0]
+        # self.H = scan_list[0].common_image_size()[1]
+        # self.W = scan_list[0].common_image_size()[0]
 
-        self.translation_center = torch.mean(self.extrinsics[..., :3, 3], dim=0, keepdims=True)
+        # self.translation_center = torch.mean(self.extrinsics[..., :3, 3], dim=0, keepdims=True)
 
         if self.load_images_bool:
             self.images = load_images(scan_list)
-        else:
-            self.images = torch.zeros((self.N, self.H, self.W, 3), dtype=torch.uint8)
-            self.load_images_bool = True
+        # else:
+        #     self.images = torch.zeros((self.N, self.H, self.W, 3), dtype=torch.uint8)
+        #     self.load_images_bool = True
 
         if self.load_depths_bool:
             self.depths = load_depths(scan_list)

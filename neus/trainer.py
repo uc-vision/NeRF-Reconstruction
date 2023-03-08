@@ -52,8 +52,8 @@ class NeusNeRFTrainer(object):
         num_epochs:int,
         iters_per_epoch:int,
 
-        dist_loss_range:tuple[int, int],
-        depth_loss_range:tuple[int, int],
+        # dist_loss_range:tuple[int, int],
+        # depth_loss_range:tuple[int, int],
         
         eval_image_freq:Union[int, str],
         eval_pointcloud_freq:Union[int, str],
@@ -81,8 +81,8 @@ class NeusNeRFTrainer(object):
         self.eval_pointcloud_freq = eval_pointcloud_freq if eval_pointcloud_freq != 'end' else num_epochs
         self.save_weights_freq =  save_weights_freq if save_weights_freq != 'end' else num_epochs
 
-        self.dist_loss_range = dist_loss_range
-        self.depth_loss_range = depth_loss_range
+        # self.dist_loss_range = dist_loss_range
+        # self.depth_loss_range = depth_loss_range
 
         self.metrics = metrics
 
@@ -177,7 +177,8 @@ class NeusNeRFTrainer(object):
             # self.bias = 0.03 - torch.mean(sdf)
 
         # self.renderer.train()
-        rgb, weights, grad_theta, mask, aux_outputs = self.renderer.render(n, h, w, K, E, self.get_cos_anneal_ratio(), bg_color)
+        # rgb, weights, grad_theta, mask, aux_outputs = self.renderer.render(n, h, w, K, E, self.get_cos_anneal_ratio(), bg_color)
+        rgb, weights, grad_theta, aux_outputs = self.renderer.render(n, h, w, K, E, self.get_cos_anneal_ratio(), bg_color)
 
         if self.iter % self.iters_per_epoch == 0:
             sdf = aux_outputs['sdf']
@@ -202,9 +203,9 @@ class NeusNeRFTrainer(object):
         # torch.masked_select(rgb_gt, ~mask) = 
 
         # rgb_gt[~mask[..., None].expand(*rgb_gt.shape)] = bg_color.view(-1)
-        rgb_gt[:, 0][~mask] = bg_color[0]
-        rgb_gt[:, 1][~mask] = bg_color[1]
-        rgb_gt[:, 2][~mask] = bg_color[2]
+        # rgb_gt[:, 0][~mask] = bg_color[0]
+        # rgb_gt[:, 1][~mask] = bg_color[1]
+        # rgb_gt[:, 2][~mask] = bg_color[2]
 
         # Calculate losses
         # print(mask.shape, mask[..., None].expand(8192, 3).shape)

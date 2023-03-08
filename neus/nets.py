@@ -44,12 +44,14 @@ class SDFNetwork(nn.Module):
             nn.Linear(hidden_dim, output_dim),
         )
 
-    def forward(self, inputs):
+    def forward(self, xyz):
+
+        xyz = (xyz + 4) / 8
 
         # inputs = (inputs + 2) / 4  # lego
-        inputs = (inputs + 4) / 8  # vines
+        # inputs = (inputs + 4) / 8  # vines
 
-        x = self.encoder(inputs)
+        x = self.encoder(xyz)
         x = self.network(x)
 
         return x
@@ -64,14 +66,6 @@ class SDFNetwork(nn.Module):
         x.requires_grad_(True)
         y = self.sdf(x)
         d_output = torch.ones_like(y, requires_grad=False, device=y.device)
-        # torch.autograd.grad(
-        #     outputs=y,
-        #     inputs=x,
-        #     grad_outputs=d_output,
-        #     create_graph=False,
-        #     retain_graph=False,
-        #     only_inputs=True,
-        #     )[0]
         gradients = torch.autograd.grad(
             outputs=y,
             inputs=x,
@@ -80,9 +74,7 @@ class SDFNetwork(nn.Module):
             retain_graph=True,
             only_inputs=True,
             )[0]
-        # print(d_output.shape, gradients.shape)
         return gradients.unsqueeze(1)
-        # return d_output.unsqueeze(1)
 
 
 class RenderingNetwork(nn.Module):
@@ -104,6 +96,7 @@ class RenderingNetwork(nn.Module):
         )
         self.directional_dim = self.encoder_dir.n_output_dims
 
+        # 
         self.in_dim_color = 57
 
         self.network = nn.Sequential(
@@ -117,7 +110,7 @@ class RenderingNetwork(nn.Module):
         )
 
     def forward(self, points, normals, view_dirs, feature_vectors):
-        view_dirs = (view_dirs + 2) / 4
+        view_dirs = (view_dirs + 1) / 2
         view_dirs = self.encoder_dir(view_dirs)
 
         rendering_input = torch.cat([points, view_dirs, normals, feature_vectors], dim=-1)

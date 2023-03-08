@@ -40,7 +40,8 @@ def render_image(renderer, n, h, w, K, E, n_rays, cos_anneal_ratio, optimizer):
 
         color_bg = torch.ones(3, device='cuda') # [3], fixed white background
 
-        image_fb, _, _, mask, aux_outputs_fb = renderer.render(n_fb, h_fb, w_fb, K_fb, E_fb, cos_anneal_ratio, bg_color=color_bg)
+        # image_fb, _, _, mask, aux_outputs_fb = renderer.render(n_fb, h_fb, w_fb, K_fb, E_fb, cos_anneal_ratio, bg_color=color_bg)
+        image_fb, _, _, aux_outputs_fb = renderer.render(n_fb, h_fb, w_fb, K_fb, E_fb, cos_anneal_ratio, bg_color=color_bg)
 
         # print(aux_outputs_fb["sdf"].amin(), aux_outputs_fb["sdf"].amax())
 

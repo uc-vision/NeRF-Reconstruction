@@ -34,9 +34,6 @@ def train(cfg : DictConfig) -> None:
         frame_strides=cfg.scan.frame_strides,
         image_scale=cfg.scan.image_scale,
         )
-    
-    # print(torch.amin(dataloader.extrinsics[:, :3, 3], dim=0), torch.amax(dataloader.extrinsics[:, :3, 3], dim=0))
-    # print(dataloader.translation_center)
 
     logger.log('Initilising Model...')
     model = NeRFNetwork(

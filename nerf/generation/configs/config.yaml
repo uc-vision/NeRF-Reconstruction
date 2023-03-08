@@ -1,0 +1,22 @@
+defaults:  
+  - _self_  
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  
+  
+hydra:  
+  output_subdir: null  
+  run:  
+    dir: .
+
+
+experiment:
+  path: "./nerf/logs/plant_and_food/test3/20230302_152237"
+
+inference:
+  pointcloud:
+    max_variance: 0.02
+    distribution_area: 0.4
+
+    side_margin: 0
+    cams: [0]
+    freq: 10
